@@ -632,14 +632,14 @@ def plot(ctx, report, directory):
                 info = report["info"]
                 methods = report["bymethod"]
                 total_value = JpambScore(
-                    report["score"], report["time"], report["relative"]
+                    max(report["score"], -100), report["time"], report["relative"]
                 )
                 method_values = {}
 
                 for methodid, correct in ctx.obj.case_methods():
                     method = methods[str(methodid)]
                     method_values[str(methodid)] = JpambScore(
-                        method["score"], method["time"], method["relative"]
+                        max(method["score"], -100), method["time"], method["relative"]
                     )
 
                 return info, method_values, total_value
@@ -709,7 +709,10 @@ def plot(ctx, report, directory):
         plot_times = np.array(times)
         plot_scores = np.array(scores)
 
-        barcolors = [get_plotcolor(pc) for pc in classes]
+        barcolors = [
+            get_plotcolor(pc) if score > -100 else "red"
+            for (pc, score) in zip(classes, plot_scores)
+        ]
 
         plt.subplot(2, 1, 1)
         plt.bar(labels, plot_scores, color=barcolors, label=classes)
@@ -747,6 +750,7 @@ def plot(ctx, report, directory):
         plot_scores = np.array(scores)
 
         performance_score = 100 * plot_scores * (1 - (plot_norm_times * 0.5))
+        performance_score = [max(100, score) for score in performance_score]
 
         plt.scatter(
             x=plot_scores,
