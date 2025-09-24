@@ -507,9 +507,43 @@ class AbsMethodID(Absolute[MethodID]):
     def decode(cls, input) -> "Self":
         return super().decode(input, MethodID.decode)
 
+
     @property
     def methodid(self):
         return self.extension
+    
+
+    @classmethod
+    def from_json(cls, m) -> "Self":
+        if isinstance(m, str):
+            return cls.decode(m)
+
+        if not isinstance(m, dict):
+            raise TypeError(f"AbsMethodID.from_json: unsupported type {type(m)}")
+
+        def desc(t) -> str:
+            if isinstance(t, str):
+                prim = {
+                    "boolean": "Z", "byte": "B", "char": "C", "short": "S",
+                    "int": "I", "long": "J", "float": "F", "double": "D",
+                }
+                if t in prim:
+                    return prim[t]
+                raise NotImplementedError(f"Unknown primitive {t!r}")
+            if isinstance(t, dict):
+                k = t.get("kind")
+                if k == "class":
+                    return f"L{t['name']};"          # name is already slashed
+                if k == "array":
+                    return "[" + desc(t["type"])     # recurse
+            raise NotImplementedError(f"Unknown type json {t!r}")
+
+        owner = m["ref"]["name"]                     # "jpamb/cases/Calls"
+        name  = m["name"]
+        args  = "".join(desc(a) for a in m.get("args", []))
+        ret   = "V" if m.get("returns") is None else desc(m["returns"])
+        sig   = f"{owner}.{name}:({args}){ret}"
+        return cls.decode(sig)
 
 
 @dataclass(frozen=True, order=True)
@@ -522,6 +556,7 @@ class AbsFieldID(Absolute[FieldID]):
     @property
     def fieldid(self):
         return self.extension
+    
 
 
 @dataclass(frozen=True, order=True)

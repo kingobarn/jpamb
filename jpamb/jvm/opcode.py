@@ -376,12 +376,19 @@ class InvokeStatic(Opcode):
 
     method: jvm.AbsMethodID
 
+    # @classmethod
+    # def from_json(cls, json: dict) -> "Opcode":
+    #     assert json["opr"] == "invoke" and json["access"] == "static"
+    #     return cls(
+    #         offset=json["offset"],
+    #         method=json["method"],
+    #     )
     @classmethod
     def from_json(cls, json: dict) -> "Opcode":
         assert json["opr"] == "invoke" and json["access"] == "static"
         return cls(
             offset=json["offset"],
-            method=json["method"],
+            method=jvm.AbsMethodID.from_json(json["method"]),
         )
 
     def real(self) -> str:
@@ -1031,7 +1038,7 @@ class Return(Opcode):
 
         # Map type to appropriate return instruction
         match self.type:
-            case jvm.Int():
+            case jvm.Int() | jvm.Boolean() | jvm.Byte() | jvm.Short() | jvm.Char():
                 return "ireturn"
             case jvm.Long():
                 return "lreturn"
@@ -1039,7 +1046,7 @@ class Return(Opcode):
                 return "freturn"
             case jvm.Double():
                 return "dreturn"
-            case jvm.Reference() | jvm.Object(_):
+            case jvm.Reference() | jvm.Object(_)| jvm.Array(_):
                 return "areturn"
             case _:
                 raise ValueError(f"Unknown return type: {self.type}")
