@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import sys
 from loguru import logger
 
+from jpamb.jvm.opcode import Throw
+
 logger.remove()
 logger.add(sys.stderr, format="[{level}] {message}")
 
@@ -116,11 +118,10 @@ def step(state: State) -> State | str:
             assert v2.type is jvm.Int(), f"expected int, but got {v2}"
             if v2.value == 0:
                 return "divide by zero"
-
             frame.stack.push(jvm.Value.int(v1.value // v2.value))
             frame.pc += 1
             return state
-        case jvm.Return(type=jvm.Int()):
+        case jvm.Return(type=jvm.Int()): # return instruction for ints
             v1 = frame.stack.pop()
             state.frames.pop()
             if state.frames:
@@ -130,12 +131,62 @@ def step(state: State) -> State | str:
                 return state
             else:
                 return "ok"
+        case jvm.Return(type=None):
+            state.frames.pop()
+            if state.frames:
+                frame = state.frames.peek()
+                frame.pc += 1
+                return state
+            else:
+                return "ok"
+        case jvm.Get():
+            frame.stack.push(0) #pushing false to the stack
+            frame.pc += 1
+            return state  
+        case jvm.Boolean():
+            frame.stack.push("Z")
+            frame.pc += 1
+            return state
+        case jvm.Ifz():
+            v1 = frame.stack.pop()
+            logger.debug(f"v1: {v1}") #to print a message in the terminal
+            if(v1 == 0):
+                frame.pc += opr.target - frame.pc.offset
+                logger.debug(f"opr.target: {opr.target}") #TA: s233852@dtu.dk
+            else:
+                frame.pc += 1
+            return state
+        case jvm.New():
+            frame.stack.push(0)
+            frame.pc += 1
+            return state
+        case jvm.Dup():
+            v1 = frame.stack.pop()
+            frame.stack.push(v1)
+            frame.stack.push(v1)
+            frame.pc += 1
+            return state
         case a:
             raise NotImplementedError(f"Don't know how to handle: {a!r}")
 
 
 frame = Frame.from_method(methodid)
 for i, v in enumerate(input.values):
+    match v:
+
+        case jvm.Value(type=jvm.Reference()):
+            pass
+        case jvm.Value(type=jvm.Float()):
+            pass
+        case jvm.Value(type=jvm.Boolean(), value = value):
+            v= jvm.Value.int(1 if value else 0)
+        case jvm.Value(type=jvm.Int()):
+            pass
+        #case jvm.Value(type=jvm.Char()):
+
+        case _:
+            assert False, f"Do not know how to handle {v}"
+    logger.debug(f"v has the value: {v}")
     frame.locals[i] = v
 
 state = State({}, Stack.empty().push(frame))
